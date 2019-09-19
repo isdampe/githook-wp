@@ -30,7 +30,11 @@ class GitHookIntercept {
 	 */
 	private function verify_request(): string {
 
-		$base_uri = $_SERVER["REQUEST_URI"];
+		$base_uri = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") .
+		 	"://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+
+		$base_uri = str_replace(get_bloginfo("wpurl"), "", $base_uri);
+
 		if (substr($base_uri, 0, 1) == "/")
 			$base_uri = substr($base_uri, 1);
 
@@ -38,6 +42,7 @@ class GitHookIntercept {
 			$base_uri = substr($base_uri, 0, strlen($base_uri) -1);
 
 		$parts = explode("/", $base_uri);
+
 		if (count($parts) !== 2)
 			return "";
 

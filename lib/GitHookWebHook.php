@@ -13,10 +13,19 @@ class GitHookWebhook {
 		$this->repo_path = $repo_path;
 		$this->branch = $branch;
 
-		$this->git = sprintf('GIT_SSH_COMMAND="ssh -i %s" git',
+		$this->git = sprintf("ssh-agent bash -c 'ssh-add %s; git {{command}}'",
 			$private_key_fp);
 
 		$this->execute();
+	}
+
+	/**
+	 * Encodes a git command.
+	 * @param  string $command The git command (i.e. "pull")
+	 * @return string The git command string.
+	 */
+	private function git_command($command): string {
+		return str_replace("{{command}}", $command, $this->git);
 	}
 
 	/**
@@ -73,7 +82,10 @@ class GitHookWebhook {
 			return;
 		} else {
 			// Only execute on matching branch events.
-			if ($json["ref"] === $this->branch || $this->branch == "") {
+			if (
+				$json["ref"] === $this->branch ||
+				$json["ref"] === sprintf("refs/heads/%s", $this->branch) ||
+				$this->branch == "") {
 
 				// Make sure the directory is a repository.
 				if (file_exists($this->repo_path . "/.git") && is_dir($this->repo_path)) {
@@ -83,7 +95,7 @@ class GitHookWebhook {
 					* Attempt to reset specific hash if specified
 					*/
 					if (! empty($_GET["reset"]) && $_GET["reset"] === "true") {
-						exec($this->git . " reset --hard HEAD 2>&1", $output, $exit);
+						exec($this->git_command(" reset --hard HEAD 2>&1"), $output, $exit);
 
 						// Reformat the output as string.
 						$output = (! empty($output) ? implode("\n", $output) : "") . "\n";
@@ -105,7 +117,7 @@ class GitHookWebhook {
 					/**
 					* Attempt to pull, returing the output and exit code
 					*/
-					exec($this->git . " pull 2>&1", $output, $exit);
+					exec($this->git_command(" pull 2>&1"), $output, $exit);
 					$output = (! empty($output) ? implode("\n", $output) : "") . "\n";
 
 					if ($exit !== 0) {
@@ -120,7 +132,7 @@ class GitHookWebhook {
 					* Attempt to checkout specific hash if specified
 					*/
 					if (! empty($sha)) {
-						exec($this->git . " reset --hard {$sha} 2>&1", $output, $exit);
+						exec($this->git_command(" reset --hard {$sha} 2>&1"), $output, $exit);
 						$output = (! empty($output) ? implode("\n", $output) : "") . "\n";
 
 						// if an error occurred, return 500 and log the error
@@ -154,7 +166,8 @@ class GitHookWebhook {
 					$this->response(400, $error);
 				}
 			} else {
-				$this->response(200, "Event was a different branch.");
+				$this->response(200, sprintf("Event was for branch '%s' but GitHook is only configured to execute on the '%s' branch",
+					$json["ref"], $this->branch));
 				return;
 			}
 		}

@@ -7,21 +7,21 @@ class GitHookPost {
 	}
 
 	/**
-	 * Registers the Githook post type.
+	 * Registers the GitHook post type.
 	 * @return void
 	 */
 	public function register_post_type() {
 		register_post_type(GITHOOK_POST_TYPE, [
-			"label" => __("Githooks"),
+			"label" => __("GitHook"),
 			"labels" => [
-				"name" => __("Githooks"),
-				"singular_name" => __("Githook"),
-				"add_new" => __("Add New Githook"),
-				"add_new_item" => __("Add New Githook"),
-				"edit_item" => __("Edit Githook"),
-				"new_item" => __("New Githook"),
-				"view_item" => __("View Githook"),
-				"view_items" => __("View Githooks")
+				"name" => __("GitHooks"),
+				"singular_name" => __("GitHook"),
+				"add_new" => __("Add New GitHook"),
+				"add_new_item" => __("Add New GitHook"),
+				"edit_item" => __("Edit GitHook"),
+				"new_item" => __("New GitHook"),
+				"view_item" => __("View GitHook"),
+				"view_items" => __("View GitHooks")
 			],
 			"description" => __("Associate GitHub and GitLab web hooks with events."),
 			"public" => false,
@@ -47,7 +47,7 @@ class GitHookPost {
 	}
 
 	/**
-	 * Enqueues the Githook admin front-end script.
+	 * Enqueues the GitHook admin front-end script.
 	 * @param  string $hook The hook string identifier.
 	 * @return void
 	 */
