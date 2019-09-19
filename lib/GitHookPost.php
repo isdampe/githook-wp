@@ -1,43 +1,6 @@
 <?php
 
-define("GITHOOK_POST_TYPE", "githook");
-
-class GithookPost {
-
-	const CONFIG_SCHEMA = [
-		[
-			"name" => "githook_secret",
-			"label" => "Secret",
-			"description" => "This is the `Secret` you'll need to save into your GitHub / GitLab web hook",
-			"type" => "text",
-			"readonly" => true,
-			"default" => ""
-		],
-		[
-			"name" => "githook_repository_directory",
-			"label" => "Repository directory",
-			"description" => "The directory of the git repository to attach to",
-			"type" => "text",
-			"readonly" => false,
-			"default" => ""
-		],
-		[
-			"name" => "githook_branch",
-			"label" => "Git branch",
-			"description" => "Only trigger githook events in a specified branch. Leave blank to trigger on all branches.",
-			"type" => "text",
-			"readonly" => false,
-			"default" => "master"
-		],
-		[
-			"name" => "githook_repo_uri",
-			"label" => "Git repo address",
-			"description" => "The remote address of the git repo. Should be something like `git@github.com/[username]/[repository].git`",
-			"type" => "text",
-			"readonly" => false,
-			"default" => ""
-		]
-	];
+class GitHookPost {
 
 	public function __construct() {
 		add_action("init", [$this, "register_post_type"]);
@@ -119,7 +82,7 @@ class GithookPost {
 	 * @return void
 	 */
 	private function process_config_updates($post) {
-		$config = $this->get_config($post);
+		$config = GitHookConfig::get_config($post);
 		foreach ($config as $entry) {
 			if ($entry["readonly"] == true)
 				continue;
@@ -141,7 +104,7 @@ class GithookPost {
 
 			$secret = get_post_meta($post->ID, "githook_secret", true);
 			if ($secret) {
-				if (! $this->generate_keys($secret)) {
+				if (! GitHookConfig::generate_keys($secret)) {
 					//Error.
 					throw new Exception("Could not generate githook deploy keys.");
 				}
@@ -159,8 +122,10 @@ class GithookPost {
 		add_meta_box("githook_config", __("Configuration", "githook"),
 			[$this, "render_config_meta_box"], null, "normal", "high");
 
-		add_meta_box("githook_keys", __("Deploy keys", "githook"),
-			[$this, "render_deploy_keys_meta_box"], null, "normal", "low");
+		if ($post->post_status == "publish") {
+			add_meta_box("githook_keys", __("Deploy key", "githook"),
+				[$this, "render_deploy_keys_meta_box"], null, "normal", "low");
+		}
 	}
 
 	/**
@@ -169,12 +134,14 @@ class GithookPost {
 	 * @return void
 	 */
 	public function render_config_meta_box($post) {
-		$config = $this->get_config($post);
+		$config = GitHookConfig::get_config($post);
 
 		foreach ($config as $entry) {
 			// Don't render the secret until the post is "published".
-			if ($entry["name"] == "githook_secret" &&
-				$post->post_status !== "publish")
+			if ((
+					$entry["name"] == "githook_secret" ||
+					$entry["name"] == "githook_payload_url"
+				) && $post->post_status !== "publish")
 					continue;
 
 			switch ($entry["type"]) {
@@ -186,39 +153,11 @@ class GithookPost {
 						</p>',
 						$entry["name"], $entry["label"], $entry["description"],
 						($entry["readonly"] ? "readonly" : ""), $entry["name"],
-						$entry["name"], $entry["value"]);
+						$entry["name"], esc_html($entry["value"]));
 				break;
 			}
 		}
 
-	}
-
-	/**
-	 * Fetches and returns an associative array of configuration data for a GitHook post.
-	 * @param  WP_Post $post The post object to fetch config for.
-	 * @return Array An array matching the schema of GithookPost::CONFIG_SCHEMA
-	 */
-	private function get_config($post) {
-		$config = GithookPost::CONFIG_SCHEMA;
-
-		foreach ($config as &$entry) {
-			$value = get_post_meta($post->ID, $entry["name"], true);
-			if ($value) {
-				$entry["value"] = $value;
-			} else {
-				switch ($entry["name"]) {
-					// Default the repository directory to the current theme directory.
-					case "githook_repository_directory":
-						$entry["value"] = get_template_directory();
-						break;
-					default:
-						$entry["value"] = $entry["default"];
-						break;
-				}
-			}
-		}
-
-		return $config;
 	}
 
 	/**
@@ -227,55 +166,26 @@ class GithookPost {
 	 * @return void
 	 */
 	public function render_deploy_keys_meta_box($post) {
-		echo '<p>If your repository is private, you\'ll need to generate a set
-			of deploy keys and save them in your GitHub / GitLab repository so
-			that GitHook has read access to your repository. If your repository
-			is public, you don\'t need to worry about deploy keys.</p>';
-
 		$secret = get_post_meta($post->ID, "githook_secret", true);
 		if (! $secret) {
 			echo "<p><strong>Error:</strong> no secret has been set.</p>";
 			return;
 		}
 
-		$keys = GithookPost::get_keys($secret);
+		$keys = GitHookConfig::get_keys($secret);
 		if (! array_key_exists("public", $keys)) {
+			echo '<p>If your repository is private, you\'ll need to generate a set
+				of deploy keys and save them in your GitHub / GitLab repository so
+				that GitHook has read access to your repository. If your repository
+				is public, you don\'t need to worry about deploy keys.</p>';
 			echo '<input type="hidden" id="githook_generate_keys" name="githook_generate_keys" value="no" />';
 			echo '<p><button id="githook-trigger-key-generation" class="button button-primary button-large">Generate keys</button></p>';
-		}
-	}
-
-	/**
-	 * Returns an array containing both a public and private key for a given
-	 * githook secret.
-	 * @param  string $secret The Githook secret.
-	 * @return array
-	 */
-	public static function get_keys($secret) {
-		$base_file = sprintf("%s/.keys/%s", GITHOOK_BASE_PATH, sha1($secret));
-
-		if (file_exists($base_file) && file_exists(sprintf("%s.pub", $base_file))) {
-			return [
-				"public" => file_get_contents(sprintf("%s.pub", $base_file)),
-				"private" => file_get_contents($base_file)
-			];
+			return;
 		}
 
-		return [];
+		echo '<p>Note: For security reasons, do not give this key write access to your git repository.</p>';
+		echo sprintf('<textarea readonly class="widefat" rows="10">%s</textarea>',
+			esc_html($keys["public"]));
 	}
 
-	/**
-	 * Generates keys for a given secret.
-	 * @param  string $secret The secret to generate keys for.
-	 * @return bool True on success, false on failure.
-	 */
-	public function generate_keys($secret) {
-		$output_fp = sprintf("%s/.keys/%s", GITHOOK_BASE_PATH, sha1($secret));
-		$gen_cmd = sprintf('ssh-keygen -f %s -N ""', escapeshellarg($output_fp));
-		exec($gen_cmd, $output, $exit_code);
-		echo $gen_cmd;
-		exit;
-
-		return (bool)($exit_code == 0);
-	}
 }
