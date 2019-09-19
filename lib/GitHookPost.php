@@ -14,10 +14,10 @@ class GitHookPost {
 		register_post_type(GITHOOK_POST_TYPE, [
 			"label" => __("GitHook"),
 			"labels" => [
-				"name" => __("GitHooks"),
+				"name" => __("GitHook"),
 				"singular_name" => __("GitHook"),
-				"add_new" => __("Add New GitHook"),
-				"add_new_item" => __("Add New GitHook"),
+				"add_new" => __("Add GitHook"),
+				"add_new_item" => __("Add GitHook"),
 				"edit_item" => __("Edit GitHook"),
 				"new_item" => __("New GitHook"),
 				"view_item" => __("View GitHook"),
