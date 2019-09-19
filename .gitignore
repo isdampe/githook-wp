@@ -1,0 +1,4 @@
+.keys/*
+!.keys/index.php
+!.keys/index.html
+!.keys/.htaccess
