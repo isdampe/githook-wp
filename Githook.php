@@ -16,6 +16,8 @@
 define("GITHOOK_VERSION", "0.0.1");
 define("GITHOOK_BASE_PATH", dirname(__FILE__));
 define("GITHOOK_POST_TYPE", "githook");
+define("GITHOOK_GIT_METHOD_SSH_AGENT", "ssh-agent");
+define("GITHOOK_DEBUG", true);
 
 require_once "lib/GitHookConfig.php";
 require_once "lib/GitHookPost.php";

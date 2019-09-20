@@ -79,7 +79,8 @@ class GitHookIntercept {
 		$webhook = new GitHookWebHook($githook_config["githook_secret"]["value"],
 			$githook_config["githook_repository_directory"]["value"],
 			$githook_config["githook_branch"]["value"],
-			GitHookConfig::get_key_fp($githook_config["githook_secret"]["value"]));
+			GitHookConfig::get_key_fp($githook_config["githook_secret"]["value"]),
+			$githook_config["githook_git_method"]["value"]);
 
 		return true;
 	}

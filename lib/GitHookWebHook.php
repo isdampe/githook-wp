@@ -6,6 +6,7 @@ class GitHookWebhook {
 	private $repo_path;
 	private $branch;
 	private $algo;
+	private $log_fp;
 
 	public function __construct(string $secret, string $repo_path,
 		string $branch, string $private_key_fp) {
@@ -16,7 +17,23 @@ class GitHookWebhook {
 		$this->git = sprintf("ssh-agent bash -c 'ssh-add %s; git {{command}}'",
 			$private_key_fp);
 
+		$this->log_fp = sprintf("%s/logs/%s.log", GITHOOK_BASE_PATH,
+			$this->secret);
+
 		$this->execute();
+	}
+
+	/**
+	 * Logs a message to a file.
+	 * @param  string $message The message to log.
+	 * @return void
+	 */
+	private function log(string $message) {
+		$log_msg = sprintf("%s: %s\n", date("Y-m-d H:i:s"), $message);
+		if (GITHOOK_DEBUG)
+			echo $log_msg;
+
+		@file_put_contents($this->log_fp, $log_msg, FILE_APPEND);
 	}
 
 	/**
@@ -24,7 +41,7 @@ class GitHookWebhook {
 	 * @param  string $command The git command (i.e. "pull")
 	 * @return string The git command string.
 	 */
-	private function git_command($command): string {
+	private function git_command(string $command): string {
 		return str_replace("{{command}}", $command, $this->git);
 	}
 
@@ -42,6 +59,8 @@ class GitHookWebhook {
 
 		$json = json_decode($content, true);
 		if (! $json) {
+			$this->load("Invalid JSON received");
+			$this->log($content);
 			$this->response(400, "The content received was not JSON. Please ensure you've set your webhook content type as 'application/json' on GitHub.");
 			return;
 		}
@@ -101,6 +120,8 @@ class GitHookWebhook {
 						$output = (! empty($output) ? implode("\n", $output) : "") . "\n";
 
 						if ($exit !== 0) {
+							$this->log("Reset to head failed. Git exit code " . $exit);
+							$this->log("Received from git: " . $output);
 							$this->response(500, sprintf("=== ERROR: Reset to head failed in '%s' ===\n%s",
 								$this->repo_path, $output));
 							return;
@@ -121,6 +142,8 @@ class GitHookWebhook {
 					$output = (! empty($output) ? implode("\n", $output) : "") . "\n";
 
 					if ($exit !== 0) {
+						$this->log("Pull failed. Git exit code " . $exit);
+						$this->log("Received from git: " . $output);
 						$this->response(500, sprintf("=== ERROR: Pull failed in '%s' ===\n%s",
 							$this->repo_path, $output));
 						return;
@@ -137,6 +160,8 @@ class GitHookWebhook {
 
 						// if an error occurred, return 500 and log the error
 						if ($exit !== 0) {
+							$this->log("Reset to hash failed. Git exit code " . $exit);
+							$this->log("Received from git: " . $output);
 							$this->response(500, sprintf("=== ERROR: Reset to hash using SHA '%s' in '%s' failed ===\n%s",
 								$sha, $this->repo_path, $output));
 							return;

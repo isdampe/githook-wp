@@ -155,6 +155,19 @@ class GitHookPost {
 						($entry["readonly"] ? "readonly" : ""), $entry["name"],
 						$entry["name"], esc_html($entry["value"]));
 				break;
+				case "select":
+					$options = "";
+					foreach ($entry["options"] as $val => $label) {
+						$options .= sprintf('<option value="%s"%s>%s</option>',
+							$val, ($val == $entry["value"] ? " selected" : ""),
+							$label);
+					}
+					echo sprintf('<p><label for="%s"><strong>%s</strong></label><br>
+						<em>%s</em><br>
+						<select class="widefat" name="%s" id="%s">%s</select></p>',
+						$entry["name"], $entry["label"], $entry["description"],
+						$entry["name"], $entry["name"], $options);
+				break;
 			}
 		}
 

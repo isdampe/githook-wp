@@ -3,3 +3,4 @@
 !.keys/index.html
 !.keys/.htaccess
 !.keys/web.config
+logs/*.log

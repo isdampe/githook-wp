@@ -50,6 +50,17 @@ class GitHookConfig {
 			"type" => "text",
 			"readonly" => false,
 			"default" => ""
+		],
+		[
+			"name" => "githook_git_method",
+			"label" => "Git private key specification method",
+			"description" => "Method used to specify the GitHook deploy key when invoking git",
+			"type" => "select",
+			"options" => [
+				GITHOOK_GIT_METHOD_SSH_AGENT => "Use ssh-agent for specification"
+			],
+			"readonly" => false,
+			"default" => "ssh-agent"
 		]
 	];
 
